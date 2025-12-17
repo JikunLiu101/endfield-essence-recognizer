@@ -36,9 +36,10 @@ jobs:
           uv run pyinstaller main.spec
 
       - name: Zip the built files
+        shell: pwsh
         run: |
           cd dist
-          zip -r dist/endfield-essence-recognizer-${{ github.ref_name }}-${{ matrix.os }}.zip dist/endfield-essence-recognizer
+          Compress-Archive -Path "endfield-essence-recognizer/*" -DestinationPath "endfield-essence-recognizer-${{ github.ref_name }}-${{ matrix.os }}.zip"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
