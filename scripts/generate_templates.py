@@ -2,7 +2,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-templates_dir = Path("templates")
+templates_dir = Path("src/endfield_essence_recognizer/templates/generated")
 all_attribute_stats = ["敏捷提升", "力量提升", "意志提升", "智识提升", "主能力提升"]
 all_secondary_stats = [
     "攻击提升",

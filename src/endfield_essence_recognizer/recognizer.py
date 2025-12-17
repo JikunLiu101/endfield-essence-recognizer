@@ -50,8 +50,8 @@ class Recognizer:
         self.preprocess_template: Callable[[MatLike], MatLike] = (
             preprocess_template if preprocess_template is not None else lambda x: x
         )
-        self._template_cache: defaultdict[str, list[MatLike]] = defaultdict(list)
-        self._exts: list[str] = [
+        self._templates: defaultdict[str, list[MatLike]] = defaultdict(list)
+        self._suffixes: list[str] = [
             ".png",
             ".jpg",
             ".jpeg",
@@ -62,9 +62,8 @@ class Recognizer:
             ".tif",
         ]
 
-        self.load_templates()
-
     def load_templates(self) -> None:
+        logger.info(f"正在从目录加载模板: {self.templates_dir}...")
         if not self.templates_dir.exists():
             logger.error(f"模板目录未找到: {self.templates_dir}")
             return
@@ -74,15 +73,15 @@ class Recognizer:
                 self.templates_dir.glob(label + "*"),
                 (self.templates_dir / label).glob("**/*"),
             ):
-                if path.suffix.lower() in self._exts and path.is_file():
+                if path.suffix.lower() in self._suffixes and path.is_file():
                     try:
                         image = load_image(path, cv2.IMREAD_GRAYSCALE)
                         image = self.preprocess_template(image)
-                        self._template_cache[label].append(image)
+                        self._templates[label].append(image)
                     except Exception as e:
                         logger.error(f"加载模板图像失败 {path}: {e}")
-            if not self._template_cache[label]:
-                logger.warning(f"在 {self.templates_dir} 中未找到标签 '{label}' 的模板")
+            if not self._templates[label]:
+                logger.error(f"在 {self.templates_dir} 中未找到标签 '{label}' 的模板")
 
     def recognize_roi(self, roi_image: MatLike) -> tuple[str | None, float]:
         """
@@ -95,12 +94,15 @@ class Recognizer:
             (标签, 置信度) 元组。如果无法识别，返回 (None, best_score)。
         """
 
+        if not self._templates:
+            self.load_templates()
+
         image_height, image_width = roi_image.shape[:2]
         gray = to_gray_image(roi_image)
 
         best_label = None
         best_score = -float("inf")
-        for label, templates in self._template_cache.items():
+        for label, templates in self._templates.items():
             for template in templates:
                 template_height, template_width = template.shape[:2]
                 if image_height < template_height or image_width < template_width:
@@ -111,7 +113,7 @@ class Recognizer:
                     continue
                 result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
                 _minVal, maxVal, _minLoc, _maxLoc = cv2.minMaxLoc(result)
-                logger.debug(f"模板匹配: 标签={label} 最大值={maxVal:.3f}")
+                logger.trace(f"模板匹配: 标签={label} 最大值={maxVal:.3f}")
                 if maxVal > best_score:
                     best_score = maxVal
                     best_label = label
