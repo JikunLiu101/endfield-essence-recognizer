@@ -1,5 +1,3 @@
-# -*- mode: python ; coding: utf-8 -*-
-
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -7,11 +5,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import cast
 
-    from PyInstaller.building.api import COLLECT, EXE, PYZ
-    from PyInstaller.building.build_main import Analysis
+    from PyInstaller.building.api import COLLECT, EXE, PYZ  # noqa: TC004
+    from PyInstaller.building.build_main import Analysis  # noqa: TC004
     from PyInstaller.config import CONF
 
-    DISTPATH = cast(str, CONF["distpath"])
+    DISTPATH = cast("str", CONF["distpath"])
 
 a = Analysis(
     ["src/endfield_essence_recognizer/__main__.py"],
@@ -73,3 +71,14 @@ coll = COLLECT(
 readme_src = Path("README.md")
 readme_dst = Path(DISTPATH) / "endfield-essence-recognizer" / "README.md"
 shutil.copy(readme_src, readme_dst)
+
+# 删除不需要的 opencv_videoio_ffmpeg DLL
+ffmpeg_dll = (
+    Path(DISTPATH)
+    / "endfield-essence-recognizer"
+    / "_internal"
+    / "cv2"
+    / "opencv_videoio_ffmpeg4120_64.dll"
+)
+if ffmpeg_dll.exists():
+    ffmpeg_dll.unlink()
