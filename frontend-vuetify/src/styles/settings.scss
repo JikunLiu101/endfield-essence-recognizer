@@ -1,0 +1,32 @@
+/**
+ * src/styles/settings.scss
+ *
+ * Configures SASS variables and Vuetify overwrites
+ */
+
+// https://vuetifyjs.com/features/sass-variables/`
+// @use 'vuetify/settings' with (
+//   $color-pack: false
+// );
+
+$sans-font: 'HarmonyOS Sans SC', sans-serif;
+$mono-font: 'Jetbrains Mono', 'Google Sans Code', monospace;
+
+html {
+  font-family: $sans-font;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-block-start: calc(0.8em + 0.8rem);
+  margin-block-end: calc(0.4em + 0.4rem);
+}
+
+code,
+pre {
+  font-family: $mono-font;
+}

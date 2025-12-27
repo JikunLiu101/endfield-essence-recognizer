@@ -1,16 +1,23 @@
+import importlib.resources
 import threading
 import time
 from collections.abc import Container
+from pathlib import Path
+from typing import Literal
 
+import cv2
 import numpy as np
 import pygetwindow
 
+from endfield_essence_recognizer.config import config
 from endfield_essence_recognizer.data import weapons
+from endfield_essence_recognizer.image import load_image
 from endfield_essence_recognizer.log import logger
 from endfield_essence_recognizer.recognizer import Recognizer
 from endfield_essence_recognizer.window import (
     click_on_window,
     get_active_support_window,
+    get_client_size,
     screenshot_window,
 )
 
@@ -21,28 +28,93 @@ essence_icon_y_list = np.linspace(196, 819, 5).astype(int)
 
 # 识别相关常量
 RESOLUTION = (1920, 1080)
-AREA = (1465, 79, 1883, 532)
+ESSENCE_UI_ROI = ((38, 66), (143, 106))
+ESSENCE_UI_TEMPLATE_PATH = (
+    importlib.resources.files("endfield_essence_recognizer")
+    / "templates/screenshot/武器基质.png"
+)
+AREA = ((1465, 79), (1883, 532))
 DEPRECATE_BUTTON_POS = (1807, 284)
 """弃用按钮点击坐标"""
 LOCK_BUTTON_POS = (1839, 286)
 """锁定按钮点击坐标"""
-DEPRECATE_BUTTON_ROI = (1790, 270, 1823, 302)
+DEPRECATE_BUTTON_ROI = ((1790, 270), (1823, 302))
 """弃用按钮截图区域"""
-LOCK_BUTTON_ROI = (1825, 270, 1857, 302)
+LOCK_BUTTON_ROI = ((1825, 270), (1857, 302))
 """锁定按钮截图区域"""
-STATS_0_ROI = (1508, 358, 1700, 390)
+STATS_0_ROI = ((1508, 358), (1700, 390))
 """属性 0 截图区域"""
-STATS_1_ROI = (1508, 416, 1700, 448)
+STATS_1_ROI = ((1508, 416), (1700, 448))
 """属性 1 截图区域"""
-STATS_2_ROI = (1508, 468, 1700, 500)
+STATS_2_ROI = ((1508, 468), (1700, 500))
 """属性 2 截图区域"""
 
 
-def recognize_once(
-    window: pygetwindow.Window,
-    text_recognizer: Recognizer,
-    icon_recognizer: Recognizer,
-) -> None:
+def check_scene(window: pygetwindow.Window) -> bool:
+    width, height = get_client_size(window)
+    if (width, height) != RESOLUTION:
+        logger.warning(
+            f"检测到终末地窗口的客户区尺寸为 {width}x{height}，请将终末地分辨率调整为 {RESOLUTION[0]}x{RESOLUTION[1]} 窗口。"
+        )
+        return False
+
+    screenshot = screenshot_window(window, ESSENCE_UI_ROI)
+    template = load_image(Path(str(ESSENCE_UI_TEMPLATE_PATH)))
+    res = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
+    _, max_val, _, _ = cv2.minMaxLoc(res)
+    logger.debug(f"基质界面模板匹配分数: {max_val:.3f}")
+    if max_val < 0.8:
+        logger.warning(
+            '当前界面不是基质界面。请按 "N" 键打开贵重品库后切换到武器基质页面。'
+        )
+        return False
+    return True
+
+
+def judge_essence_quality(stats: list[str | None]) -> Literal["treasure", "trash"]:
+    """根据识别到的属性判断基质品质，并输出日志提示。"""
+
+    # 尝试匹配用户自定义的宝藏基质条件
+    for treasure_stat in config.treasure_essence_stats:
+        if (
+            treasure_stat.attribute in stats
+            and treasure_stat.secondary in stats
+            and treasure_stat.skill in stats
+        ):
+            logger.opt(colors=True).success(
+                "这个基质是<green><bold><underline>宝藏</></></>，因为它符合你设定的宝藏基质条件。"
+            )
+            return "treasure"
+
+    # 尝试匹配已实装武器
+    for weapon_id, weapon_data in weapons.items():
+        if (
+            weapon_data["stats"]["attribute"] == stats[0]
+            and weapon_data["stats"]["secondary"] == stats[1]
+            and weapon_data["stats"]["skill"] == stats[2]
+        ):
+            # 匹配到已实装武器
+            if weapon_id in config.trash_weapon_ids:
+                logger.opt(colors=True).warning(
+                    f"这个基质虽然匹配武器<bold>{weapon_data['weaponName']}（{weapon_data['rarity']}★ {weapon_data['weaponType']}）</>，但是它被认为是<red><bold><underline>垃圾</></></>。"
+                )
+                return "trash"
+            else:
+                logger.opt(colors=True).success(
+                    f"这个基质是<green><bold><underline>宝藏</></></>，它完美契合武器<bold>{weapon_data['weaponName']}（{weapon_data['rarity']}★ {weapon_data['weaponType']}）</>。"
+                )
+                return "treasure"
+    else:
+        # 未匹配到任何已实装武器
+        logger.opt(colors=True).success(
+            "这个基质是<red><bold><underline>垃圾</></></>，它不匹配任何已实装武器。"
+        )
+        return "trash"
+
+
+def recognize_essence(
+    window: pygetwindow.Window, text_recognizer: Recognizer, icon_recognizer: Recognizer
+) -> tuple[list[str | None], str | None, str | None]:
     stats: list[str | None] = []
 
     for k, roi in enumerate([STATS_0_ROI, STATS_1_ROI, STATS_2_ROI]):
@@ -67,27 +139,24 @@ def recognize_once(
         f"已识别当前基质，属性: <magenta>{stats}</>, <magenta>{deprecated_text}</>, <magenta>{locked_text}</>"
     )
 
-    if (
-        any(stat is None for stat in stats)
-        or deprecated_str is None
-        or locked_str is None
-    ):
+    return stats, deprecated_str, locked_str
+
+
+def recognize_once(
+    window: pygetwindow.Window, text_recognizer: Recognizer, icon_recognizer: Recognizer
+) -> None:
+    check_scene_result = check_scene(window)
+    if not check_scene_result:
         return
 
-    for weapon_id, weapon_data in weapons.items():
-        if (
-            weapon_data["stats"]["attribute"] == stats[0]
-            and weapon_data["stats"]["secondary"] == stats[1]
-            and weapon_data["stats"]["skill"] == stats[2]
-        ):
-            logger.opt(colors=True).success(
-                f"这个基质是<green><bold><underline>宝藏</></></>，它完美契合武器<bold>{weapon_data['weaponName']}（{weapon_data['rarity']}★ {weapon_data['weaponType']}）</>。"
-            )
-            break
-    else:
-        logger.opt(colors=True).success(
-            "这个基质是<red><bold><underline>垃圾</></></>，它不匹配任何已实装武器。"
-        )
+    stats, deprecated_str, locked_str = recognize_essence(
+        window, text_recognizer, icon_recognizer
+    )
+
+    if deprecated_str is None or locked_str is None:
+        return
+
+    judge_essence_quality(stats)
 
 
 class EssenceScanner(threading.Thread):
@@ -113,10 +182,25 @@ class EssenceScanner(threading.Thread):
     def run(self) -> None:
         logger.info("开始基质扫描线程...")
         self._scanning.set()
-        for i, j in np.ndindex(len(essence_icon_y_list), len(essence_icon_x_list)):
-            relative_x = essence_icon_x_list[j]
-            relative_y = essence_icon_y_list[i]
+        # window = get_active_support_window(self._supported_window_titles)
+        # if window is None:
+        #     logger.info("终末地窗口不在前台，停止基质扫描。")
+        #     self._scanning.clear()
+        #     return
+        import pygetwindow
 
+        window: pygetwindow.Window = pygetwindow.getWindowsWithTitle("EndfieldTBeta2")[
+            0
+        ]
+        window.restore()
+        window.activate()
+
+        check_scene_result = check_scene(window)
+        if not check_scene_result:
+            self._scanning.clear()
+            return
+
+        for i, j in np.ndindex(len(essence_icon_y_list), len(essence_icon_x_list)):
             window = get_active_support_window(self._supported_window_titles)
             if window is None:
                 logger.info("终末地窗口不在前台，停止基质扫描。")
@@ -127,78 +211,65 @@ class EssenceScanner(threading.Thread):
                 logger.info("基质扫描被中断。")
                 break
 
+            logger.info(f"正在扫描第 {i + 1} 行第 {j + 1} 列的基质...")
+
+            # 点击基质图标位置
+            relative_x = essence_icon_x_list[j]
+            relative_y = essence_icon_y_list[i]
             click_on_window(window, relative_x, relative_y)
 
             # 等待短暂时间以确保界面更新
             time.sleep(0.3)
 
-            stats: list[str | None] = []
-
-            for k, roi in enumerate([STATS_0_ROI, STATS_1_ROI, STATS_2_ROI]):
-                screenshot_image = screenshot_window(window, roi)
-                result, max_val = self._text_recognizer.recognize_roi(screenshot_image)
-                stats.append(result)
-                logger.debug(
-                    f"第 {i + 1} 行第 {j + 1} 列基质的属性 {k} 识别结果: {result} (分数: {max_val:.3f})"
-                )
-
-            screenshot_image = screenshot_window(window, DEPRECATE_BUTTON_ROI)
-            deprecated_str, max_val = self._icon_recognizer.recognize_roi(
-                screenshot_image
-            )
-            deprecated_text = (
-                deprecated_str if deprecated_str is not None else "不知道是否已弃用"
-            )
-            logger.debug(
-                f"第 {i + 1} 行第 {j + 1} 列基质的弃用按钮识别结果: {deprecated_str} (分数: {max_val:.3f})"
+            # 识别基质信息
+            stats, deprecated_str, locked_str = recognize_essence(
+                window, self._text_recognizer, self._icon_recognizer
             )
 
-            screenshot_image = screenshot_window(window, LOCK_BUTTON_ROI)
-            locked_str, max_val = self._icon_recognizer.recognize_roi(screenshot_image)
-            locked_text = locked_str if locked_str is not None else "不知道是否已锁定"
-            logger.debug(
-                f"第 {i + 1} 行第 {j + 1} 列基质的锁定按钮识别结果: {locked_str} (分数: {max_val:.3f})"
-            )
-
-            logger.opt(colors=True).info(
-                f"已识别第 {i + 1} 行第 {j + 1} 列的基质，属性: <magenta>{stats}</>, <magenta>{deprecated_text}</>, <magenta>{locked_text}</>"
-            )
-
-            if (
-                any(stat is None for stat in stats)
-                or deprecated_str is None
-                or locked_str is None
-            ):
+            if deprecated_str is None or locked_str is None:
                 continue
 
-            for weapon_id, weapon_data in weapons.items():
-                if (
-                    weapon_data["stats"]["attribute"] == stats[0]
-                    and weapon_data["stats"]["secondary"] == stats[1]
-                    and weapon_data["stats"]["skill"] == stats[2]
-                ):
-                    logger.opt(colors=True).success(
-                        f"第 {i + 1} 行第 {j + 1} 列的基质是<green><bold><underline>宝藏</></></>，它完美契合武器<bold>{weapon_data['weaponName']}</>。"
-                    )
-                    if locked_str == "未锁定":
-                        click_on_window(window, *LOCK_BUTTON_POS)
-                        logger.success("给你自动锁上了，记得保管好哦！(*/ω＼*)")
-                    break
-            else:
-                logger.opt(colors=True).success(
-                    f"第 {i + 1} 行第 {j + 1} 列的基质是<red><bold><underline>垃圾</></></>，它不匹配任何已实装武器。"
+            essence_quality = judge_essence_quality(stats)
+            if locked_str == "未锁定" and (
+                (essence_quality == "treasure" and config.treasure_action in "lock")
+                or (essence_quality == "trash" and config.trash_action in "lock")
+            ):
+                click_on_window(window, *LOCK_BUTTON_POS)
+                logger.success("给你自动锁上了，记得保管好哦！(*/ω＼*)")
+            elif locked_str == "已锁定" and (
+                (
+                    essence_quality == "treasure"
+                    and config.treasure_action in ["unlock", "unlock_and_undeprecate"]
                 )
-                if locked_str == "已锁定":
-                    click_on_window(window, *LOCK_BUTTON_POS)
-                    logger.success("给你自动解锁了，可以放心当狗粮用啦！ヾ(≧▽≦*)o")
-
-            # datetime_str = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S_%f")
-            # save_image(
-            #     screenshot_image,
-            #     screenshot_dir / f"essence_scan_{datetime_str}.png",
-            # )
-
-            time.sleep(0.0)
+                or (
+                    essence_quality == "trash"
+                    and config.trash_action in ["unlock", "unlock_and_undeprecate"]
+                )
+            ):
+                click_on_window(window, *LOCK_BUTTON_POS)
+                logger.success("给你自动解锁了！ヾ(≧▽≦*)o")
+            if deprecated_str == "未弃用" and (
+                (
+                    essence_quality == "treasure"
+                    and config.treasure_action == "deprecate"
+                )
+                or (essence_quality == "trash" and config.trash_action == "deprecate")
+            ):
+                click_on_window(window, *DEPRECATE_BUTTON_POS)
+                logger.success("给你自动标记为弃用了！(￣︶￣)>")
+            elif deprecated_str == "已弃用" and (
+                (
+                    essence_quality == "treasure"
+                    and config.treasure_action
+                    in ["undeprecate", "unlock_and_undeprecate"]
+                )
+                or (
+                    essence_quality == "trash"
+                    and config.trash_action in ["undeprecate", "unlock_and_undeprecate"]
+                )
+            ):
+                click_on_window(window, *DEPRECATE_BUTTON_POS)
+                logger.success("给你自动取消弃用啦！(＾Ｕ＾)ノ~ＹＯ")
 
         else:
             # 扫描完成

@@ -2,24 +2,15 @@ from __future__ import annotations
 
 import importlib.resources
 import time
-import winsound
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import keyboard
-
-from endfield_essence_recognizer.data import (
-    all_attribute_stats,
-    all_secondary_stats,
-    all_skill_stats,
-)
-from endfield_essence_recognizer.essence_scanner import EssenceScanner, recognize_once
 from endfield_essence_recognizer.log import logger
-from endfield_essence_recognizer.recognizer import (
-    Recognizer,
-    preprocess_text_roi,  # noqa: F401
-    preprocess_text_template,  # noqa: F401
-)
-from endfield_essence_recognizer.window import get_active_support_window
+
+if TYPE_CHECKING:
+    from endfield_essence_recognizer.essence_scanner import EssenceScanner
+    from endfield_essence_recognizer.recognizer import Recognizer
+
 
 # 资源路径
 enable_sound_path = (
@@ -39,48 +30,48 @@ supported_window_titles = ["EndfieldTBeta2", "明日方舟：终末地"]
 """支持的窗口标题列表"""
 
 # 全局变量
-running = True
+# running = True
 """程序运行状态标志"""
 essence_scanner_thread: EssenceScanner | None = None
 """基质扫描器线程实例"""
 
 # 构造识别器实例
-text_recognizer = Recognizer(
-    labels=all_attribute_stats + all_secondary_stats + all_skill_stats,
-    templates_dir=Path(str(generated_template_dir)),
-    # preprocess_roi=preprocess_text_roi,
-    # preprocess_template=preprocess_text_template,
-)
-icon_recognizer = Recognizer(
-    labels=["已弃用", "未弃用", "已锁定", "未锁定"],
-    templates_dir=Path(str(screenshot_template_dir)),
-)
+text_recognizer: Recognizer | None = None
+icon_recognizer: Recognizer | None = None
 
 
 def on_bracket_left():
     """处理 "[" 键按下事件 - 仅识别不操作"""
+    from endfield_essence_recognizer.essence_scanner import recognize_once
+    from endfield_essence_recognizer.window import get_active_support_window
+
     window = get_active_support_window(supported_window_titles)
     if window is None:
         logger.debug("终末地窗口不在前台，忽略 '[' 键。")
         return
     else:
         logger.info("检测到 '[' 键，开始识别基质")
-        recognize_once(window, text_recognizer, icon_recognizer)
+        recognize_once(window, text_recognizer, icon_recognizer)  # type: ignore
 
 
 def on_bracket_right():
     """处理 "]" 键按下事件 - 切换自动点击"""
+    import winsound
+
+    from endfield_essence_recognizer.essence_scanner import EssenceScanner
+    from endfield_essence_recognizer.window import get_active_support_window
+
     global essence_scanner_thread
 
-    if get_active_support_window(supported_window_titles) is None:
+    if False and get_active_support_window(supported_window_titles) is None:
         logger.debug('终末地窗口不在前台，忽略 "]" 键。')
         return
     else:
         if essence_scanner_thread is None or not essence_scanner_thread.is_alive():
             logger.info('检测到 "]" 键，开始扫描基质')
             essence_scanner_thread = EssenceScanner(
-                text_recognizer=text_recognizer,
-                icon_recognizer=icon_recognizer,
+                text_recognizer=text_recognizer,  # ty:ignore[invalid-argument-type]
+                icon_recognizer=icon_recognizer,  # ty:ignore[invalid-argument-type]
                 supported_window_titles=supported_window_titles,
             )
             essence_scanner_thread.start()
@@ -96,19 +87,21 @@ def on_bracket_right():
             )
 
 
-def on_exit():
-    """处理 Alt+Delete 按下事件 - 退出程序"""
-    global running, essence_scanner_thread
-    logger.info('检测到 "Alt+Delete"，正在退出程序...')
-    running = False
-    if essence_scanner_thread is not None:
-        essence_scanner_thread.stop()
-        essence_scanner_thread = None
+# def on_exit():
+#     """处理 Alt+Delete 按下事件 - 退出程序"""
+#     global running, essence_scanner_thread
+#     logger.info('检测到 "Alt+Delete"，正在退出程序...')
+#     running = False
+#     if essence_scanner_thread is not None:
+#         essence_scanner_thread.stop()
+#         essence_scanner_thread = None
 
 
 def main():
     """主函数"""
-    global running
+
+    # global running, text_recognizer, icon_recognizer
+    global text_recognizer, icon_recognizer
 
     message = """
 
@@ -132,17 +125,60 @@ def main():
 """
     logger.opt(colors=True).success(message)
 
-    logger.info("开始监听热键...")
+    # 读取配置
+    from endfield_essence_recognizer.config import config
+
+    config.load_and_update()
+
+    # 构造识别器实例
+    from endfield_essence_recognizer.data import (
+        all_attribute_stats,
+        all_secondary_stats,
+        all_skill_stats,
+    )
+    from endfield_essence_recognizer.recognizer import Recognizer
+
+    text_recognizer = Recognizer(
+        labels=all_attribute_stats + all_secondary_stats + all_skill_stats,
+        templates_dir=Path(str(generated_template_dir)),
+        # preprocess_roi=preprocess_text_roi,
+        # preprocess_template=preprocess_text_template,
+    )
+    icon_recognizer = Recognizer(
+        labels=["已弃用", "未弃用", "已锁定", "未锁定"],
+        templates_dir=Path(str(screenshot_template_dir)),
+    )
 
     # 注册热键
+    import keyboard
+
     keyboard.add_hotkey("[", on_bracket_left)
     keyboard.add_hotkey("]", on_bracket_right)
-    keyboard.add_hotkey("alt+delete", on_exit)
+    # keyboard.add_hotkey("alt+delete", on_exit)
 
-    # 保持程序运行
+    logger.info("开始监听热键...")
+
+    # 启动 web 后端
+    import threading
+
+    from endfield_essence_recognizer.webui import (
+        api_host,
+        api_port,
+        start_api_server,
+        start_pywebview,
+        webview_url,
+    )
+
+    api_thread = threading.Thread(
+        target=start_api_server,
+        args=(api_host, api_port),
+        daemon=True,
+    )
+    api_thread.start()
+
+    # 启动 webui
     try:
-        while running:
-            time.sleep(0.1)
+        start_pywebview(webview_url)
     except (KeyboardInterrupt, SystemExit):
         logger.info("程序被中断，正在退出...")
     finally:

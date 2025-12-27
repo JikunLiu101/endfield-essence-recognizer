@@ -80,5 +80,4 @@ ffmpeg_dll = (
     / "cv2"
     / "opencv_videoio_ffmpeg4120_64.dll"
 )
-if ffmpeg_dll.exists():
-    ffmpeg_dll.unlink()
+ffmpeg_dll.unlink()

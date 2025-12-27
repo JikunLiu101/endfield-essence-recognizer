@@ -5,12 +5,17 @@ description = "不知道哪些基质该留哪些该扔？逝逝这个妙妙小�
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.127.0",
     "keyboard>=0.13.5",
     "loguru>=0.7.3",
     "opencv-python>=4.12.0.88",
     "pyautogui>=0.9.54",
+    "pydantic>=2.12.5",
     "pygetwindow>=0.0.9",
+    "python-dotenv>=1.2.1",
+    "pywebview>=6.1",
     "pywin32>=311",
+    "uvicorn>=0.40.0",
 ]
 
 [dependency-groups]
