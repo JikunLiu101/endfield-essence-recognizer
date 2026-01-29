@@ -1,61 +1,18 @@
-// /**
-//  * router/index.ts
-//  *
-//  * Automatic routes for `./src/pages/*.vue`
-//  */
-
-// // Composables
-// import { createRouter, createWebHistory } from 'vue-router'
-// import { routes } from 'vue-router/auto-routes'
-
-// const router = createRouter({
-//   history: createWebHistory(import.meta.env.BASE_URL),
-//   routes,
-// })
-
-// // Workaround for https://github.com/vitejs/vite/issues/11804
-// router.onError((err, to) => {
-//   if (err?.message?.includes?.('Failed to fetch dynamically imported module')) {
-//     if (localStorage.getItem('vuetify:dynamic-reload')) {
-//       console.error('Dynamic import error, reloading page did not fix it', err)
-//     } else {
-//       console.log('Reloading page to fix dynamic import error')
-//       localStorage.setItem('vuetify:dynamic-reload', 'true')
-//       location.assign(to.fullPath)
-//     }
-//   } else {
-//     console.error(err)
-//   }
-// })
-
-// router.isReady().then(() => {
-//   localStorage.removeItem('vuetify:dynamic-reload')
-// })
-
-// export default router
-
-import { createRouter, createWebHistory } from 'vue-router'
-import Index from '@/pages/index.vue'
 import Docs from '@/pages/docs.vue'
-import Settings from '@/pages/settings.vue'
-import Monitor from '@/pages/monitor.vue'
 import FriendLinks from '@/pages/friend-links.vue'
+import Index from '@/pages/index.vue'
+import Monitor from '@/pages/monitor.vue'
+import Settings from '@/pages/settings.vue'
 import Yituliu from '@/pages/yituliu.vue'
-import Logs from '@/pages/logs.vue'
+import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: Index,
-      meta: { title: '首页', icon: 'mdi-home' },
-    },
-    {
-      path: '/logs',
       name: 'logs',
-      component: Logs,
+      component: Index,
       meta: { title: '日志', icon: 'mdi-file-document-outline' },
     },
     {

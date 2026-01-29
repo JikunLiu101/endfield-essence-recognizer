@@ -42,7 +42,7 @@
           请在终末地的设置中将分辨率调整为 <strong class="text-primary">1920×1080 窗口</strong>
         </li>
         <li>
-          请按 <v-hotkey keys="K" inline variant="flat" /> 键打开终末地<strong class="text-primary"
+          请按 <v-hotkey keys="N" inline variant="flat" /> 键打开终末地<strong class="text-primary"
             >贵重品库</strong
           >并切换到<strong class="text-primary">武器基质</strong>页面
         </li>
