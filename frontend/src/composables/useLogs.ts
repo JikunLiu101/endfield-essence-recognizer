@@ -19,13 +19,14 @@ let reconnectTimer: number | null = null
 const maxLogs = 1000
 
 function connectWebSocket() {
-  const url = import.meta.env.VITE_API_BASE_URL || window.location.origin
-  const wsUrl = `${url.replace(/^http/, 'ws')}/ws/logs`
+  const wsProtocol = window.location.protocol.replace('http', 'ws')
+  const host = window.location.host
+  const wsUrl = `${wsProtocol}//${host}/ws/logs`
 
   websocket = new WebSocket(wsUrl)
 
   websocket.addEventListener('open', () => {
-    console.log('WebSocket连接已建立')
+    console.log('WebSocket 连接已建立')
   })
 
   websocket.addEventListener('message', (event) => {
@@ -40,13 +41,13 @@ function connectWebSocket() {
   })
 
   websocket.addEventListener('close', () => {
-    console.log('WebSocket连接已关闭，尝试重连...')
+    console.log('WebSocket 连接已关闭，尝试重连...')
     websocket = null
     reconnectTimer = window.setTimeout(connectWebSocket, 5000)
   })
 
   websocket.addEventListener('error', (error) => {
-    console.error('WebSocket错误:', error)
+    console.error('WebSocket 错误:', error)
   })
 }
 

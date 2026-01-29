@@ -104,7 +104,7 @@ async function updateScreenshot() {
     quality: quality.value.toString(),
     timestamp: Date.now().toString(),
   })
-  const url = `${import.meta.env.VITE_API_BASE_URL}/api/screenshot?${params.toString()}`
+  const url = `/api/screenshot?${params.toString()}`
   // const oldUrl = screenshotUrl.value
   // fetch(url)
   //   .then((response) => response.blob())

@@ -36,11 +36,11 @@ function toggleAutoScroll() {
 }
 
 function startScanning() {
-  fetch(`${import.meta.env.VITE_API_BASE_URL}/api/start_scanning`, { method: 'POST' })
+  fetch('/api/start_scanning', { method: 'POST' })
 }
 
 function openLogsFolder() {
-  fetch(`${import.meta.env.VITE_API_BASE_URL}/api/open_logs_folder`, { method: 'POST' })
+  fetch('/api/open_logs_folder', { method: 'POST' })
 }
 
 // 监听日志变化，自动滚动

@@ -22,7 +22,7 @@ function getI18nTextTablePath(language: string) {
 
 /** 获取资源的完整 URL */
 function getResourceUrl(resourcePath: string): string {
-  return `${import.meta.env.VITE_API_BASE_URL}/api/data/${resourcePath}`
+  return `/api/data/${resourcePath}`
 }
 
 /**

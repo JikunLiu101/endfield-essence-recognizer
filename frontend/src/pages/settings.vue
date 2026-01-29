@@ -316,7 +316,7 @@ const config = computed(() => {
 })
 
 async function getConfig() {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/config`)
+  const response = await fetch(`/api/config`)
   const result = await response.json()
   const { trash_weapon_ids, treasure_essence_stats, treasure_action, trash_action } = result
   treasureEssenceStats.value = treasure_essence_stats
@@ -328,7 +328,7 @@ async function getConfig() {
 }
 
 async function postConfig() {
-  await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/config`, {
+  await fetch(`/api/config`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
