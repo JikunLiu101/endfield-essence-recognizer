@@ -7,6 +7,8 @@ from importlib.abc import Traversable
 import cv2
 from cv2.typing import MatLike
 
+from endfield_essence_recognizer.game_data import gem_table
+from endfield_essence_recognizer.game_data.weapon import get_gem_tag_name
 from endfield_essence_recognizer.image import (
     linear_operation,
     load_image,
@@ -29,6 +31,13 @@ def preprocess_text_roi(roi_image: MatLike) -> MatLike:
 def preprocess_text_template(template_image: MatLike) -> MatLike:
     """对模板图像进行预处理，提升识别效果。"""
     return linear_operation(template_image, 128, 255)
+
+
+def get_label_name(label: str) -> str:
+    """获取标签的显示名称。"""
+    if label in gem_table:
+        return get_gem_tag_name(label, "CN")
+    return label
 
 
 class Recognizer:
@@ -103,28 +112,35 @@ class Recognizer:
         gray = to_gray_image(roi_image)
 
         best_label = None
+        best_label_name = "无匹配"
         best_score = -float("inf")
         for label, templates in self._templates.items():
+            label_name = get_label_name(label)
             for template in templates:
                 template_height, template_width = template.shape[:2]
                 if image_height < template_height or image_width < template_width:
                     logger.warning(
-                        f"标签 '{label}' 的 ROI 图像小于模板: "
+                        f"标签 '{label_name}' 的 ROI 图像小于模板: "
                         f"ROI 尺寸={gray.shape[::-1]}, 模板尺寸={template.shape[::-1]}"
                     )
                     continue
                 result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
                 _minVal, maxVal, _minLoc, _maxLoc = cv2.minMaxLoc(result)
-                logger.trace(f"模板匹配: 最佳匹配={label} 分数={maxVal:.3f}")
+                logger.trace(f"模板匹配: 最佳匹配={label_name} 分数={maxVal:.3f}")
                 if maxVal > best_score:
                     best_score = maxVal
                     best_label = label
+                    best_label_name = label_name
 
         if best_score >= self.high_thresh:
             return best_label, float(best_score)
         elif best_score >= self.low_thresh:
-            logger.warning(f"匹配分数较低: 最佳匹配={best_label} 分数={best_score:.3f}")
+            logger.warning(
+                f"匹配分数较低: 最佳匹配={best_label_name} 分数={best_score:.3f}"
+            )
             return best_label, float(best_score)
         else:
-            logger.warning(f"匹配分数很低: 最佳匹配={best_label} 分数={best_score:.3f}")
+            logger.warning(
+                f"匹配分数很低: 最佳匹配={best_label_name} 分数={best_score:.3f}"
+            )
             return None, float(best_score)

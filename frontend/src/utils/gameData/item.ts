@@ -24,7 +24,7 @@ export function getItemRarity(itemId: string): number | undefined {
 export function getItemTierColor(itemId: string): ColorInstance {
   const rarity = getItemRarity(itemId)
   if (rarity !== undefined && rarityColorTable.value[rarity] !== undefined) {
-    return Color(rarityColorTable.value[rarity].color)
+    return Color(`#${rarityColorTable.value[rarity].color}`)
   }
   return Color('transparent') // Default to transparent if rarity is undefined or not found
 }

@@ -1,7 +1,7 @@
 import importlib.resources
 import threading
 import time
-from collections.abc import Container
+from collections.abc import Collection
 from typing import Literal
 
 import cv2
@@ -12,6 +12,7 @@ from endfield_essence_recognizer.config import config
 from endfield_essence_recognizer.game_data import get_translation, weapon_basic_table
 from endfield_essence_recognizer.game_data.item import get_item_name
 from endfield_essence_recognizer.game_data.weapon import (
+    get_gem_tag_name,
     weapon_stats_dict,
     weapon_type_int_to_translation_key,
 )
@@ -22,6 +23,7 @@ from endfield_essence_recognizer.window import (
     click_on_window,
     get_active_support_window,
     get_client_size,
+    get_support_window,
     screenshot_window,
 )
 
@@ -140,8 +142,12 @@ def recognize_essence(
     locked_text = locked_str if locked_str is not None else "不知道是否已锁定"
     logger.debug(f"锁定按钮识别结果: {locked_str} (分数: {max_val:.3f})")
 
+    stats_name = "、".join(
+        "无" if stat is None else get_gem_tag_name(stat, "CN") for stat in stats
+    )
+
     logger.opt(colors=True).info(
-        f"已识别当前基质，属性: <magenta>{stats}</>, <magenta>{deprecated_text}</>, <magenta>{locked_text}</>"
+        f"已识别当前基质，属性: <magenta>{stats_name}</>, <magenta>{deprecated_text}</>, <magenta>{locked_text}</>"
     )
 
     return stats, deprecated_str, locked_str
@@ -176,33 +182,23 @@ class EssenceScanner(threading.Thread):
         self,
         text_recognizer: Recognizer,
         icon_recognizer: Recognizer,
-        supported_window_titles: Container[str],
+        supported_window_titles: Collection[str],
     ) -> None:
         super().__init__(daemon=True)
         self._scanning = threading.Event()
         self._text_recognizer: Recognizer = text_recognizer
         self._icon_recognizer: Recognizer = icon_recognizer
-        self._supported_window_titles: Container[str] = supported_window_titles
+        self._supported_window_titles: Collection[str] = supported_window_titles
 
     def run(self) -> None:
         logger.info("开始基质扫描线程...")
         self._scanning.set()
-        # window = get_active_support_window(self._supported_window_titles)
-        # if window is None:
-        #     logger.info("终末地窗口不在前台，停止基质扫描。")
-        #     self._scanning.clear()
-        #     return
-        import pygetwindow
 
-        windows: list[pygetwindow.Window] = pygetwindow.getWindowsWithTitle(
-            "EndfieldTBeta2"
-        )
-        if not windows:
+        window = get_support_window(self._supported_window_titles)
+        if window is None:
             logger.info("未找到终末地窗口，停止基质扫描。")
             self._scanning.clear()
             return
-
-        window: pygetwindow.Window | None = windows[0]
         if window.isMinimized:
             window.restore()
             time.sleep(0.5)

@@ -3,6 +3,7 @@ from typing import TypedDict
 from endfield_essence_recognizer.game_data import (
     gem_table,
     gem_tag_id_table,
+    get_translation,
     skill_patch_table,
     weapon_basic_table,
     wiki_entry_data_table,
@@ -21,15 +22,12 @@ class WeaponStats(TypedDict):
     """技能属性"""
 
 
-def get_gem_tag_name(gem_term_id: str) -> str:
+def get_gem_tag_name(gem_term_id: str, language: str) -> str:
     """Get the localized name for a gem tag."""
     gem = gem_table.get(gem_term_id)
     if gem is None:
         return gem_term_id
-    tag_name = gem.get("tagName", {})
-    return (
-        tag_name.get("en", gem_term_id) if isinstance(tag_name, dict) else gem_term_id
-    )
+    return get_translation(gem["tagName"], language)
 
 
 def get_stats_for_weapon(weapon_id: str) -> WeaponStats:

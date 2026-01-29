@@ -1,6 +1,6 @@
 """窗口截图和区域捕获工具模块。"""
 
-from collections.abc import Container
+from collections.abc import Container, Iterable
 
 import numpy as np
 import pyautogui
@@ -144,6 +144,16 @@ def get_active_support_window(
         return active_window
     else:
         return None
+
+
+def get_support_window(
+    supported_window_titles: Iterable[str],
+) -> pygetwindow.Window | None:
+    for title in supported_window_titles:
+        windows = pygetwindow.getWindowsWithTitle(title)
+        if windows:
+            return windows[0]
+    return None
 
 
 def click_on_window(
