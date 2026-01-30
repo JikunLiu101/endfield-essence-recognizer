@@ -8,3 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+
+# logs
+logs/
+
+# local app settings
+config.json
