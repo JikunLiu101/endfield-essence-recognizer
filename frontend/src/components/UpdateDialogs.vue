@@ -7,7 +7,7 @@
     <template #actions>
       <v-btn class="ms-2" @click="hasNewVersionDialog = false">稍后提醒</v-btn>
       <v-btn class="ms-2" href="https://ef.yituliu.cn/resources/essence-recognizer" target="_blank"
-        >查看更新日志</v-btn
+        >前往官网</v-btn
       >
       <v-btn
         class="ms-2"
