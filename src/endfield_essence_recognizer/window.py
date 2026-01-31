@@ -10,7 +10,7 @@ import win32gui  # ty:ignore[unresolved-import]
 import win32ui  # ty:ignore[unresolved-import]
 from cv2.typing import MatLike
 
-from endfield_essence_recognizer.image import Scope
+from endfield_essence_recognizer.utils.image import Scope
 
 
 def _get_window_hwnd(window: pygetwindow.Window) -> int:

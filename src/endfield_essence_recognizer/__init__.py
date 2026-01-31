@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib.resources
 from typing import TYPE_CHECKING, cast
 
-from endfield_essence_recognizer.log import logger
+from endfield_essence_recognizer.utils.log import logger
 from endfield_essence_recognizer.version import __version__ as __version__
 
 if TYPE_CHECKING:

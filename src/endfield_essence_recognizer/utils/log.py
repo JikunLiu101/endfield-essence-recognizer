@@ -54,7 +54,9 @@ class LoguruHandler(logging.Handler):
 LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"default": {"class": "endfield_essence_recognizer.log.LoguruHandler"}},
+    "handlers": {
+        "default": {"class": "endfield_essence_recognizer.utils.log.LoguruHandler"}
+    },
     "loggers": {
         "uvicorn.error": {"handlers": ["default"], "level": "INFO"},
         "uvicorn.access": {"handlers": ["default"], "level": "INFO"},
