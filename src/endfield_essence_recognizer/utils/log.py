@@ -1,3 +1,9 @@
+"""
+Logging utilities of the server process.
+
+Provides loguru logger configuration and a WebSocket log handler.
+"""
+
 from __future__ import annotations
 
 import asyncio

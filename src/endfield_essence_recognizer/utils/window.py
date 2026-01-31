@@ -1,4 +1,6 @@
-"""窗口截图和区域捕获工具模块。"""
+"""
+Windows OS-specific window utilities.
+"""
 
 from collections.abc import Container, Iterable
 
