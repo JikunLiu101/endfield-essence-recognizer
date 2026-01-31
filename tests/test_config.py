@@ -1,6 +1,10 @@
 import pytest
 
-from endfield_essence_recognizer.core.config import ServerConfig, get_server_config
+from endfield_essence_recognizer.core.config import (
+    ServerConfig,
+    _get_fresh_server_config,
+    get_server_config,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -56,18 +60,26 @@ def test_get_server_config_singleton():
     assert config1 is config2
 
 
-def test_get_server_config_with_base_dir(tmp_path):
-    """Test that get_server_config correctly loads from a specified directory."""
+def test_get_fresh_server_config_with_base_dir(tmp_path):
+    """Test that _get_fresh_server_config correctly loads from a specified directory."""
     env_content = "EER_API_PORT=7777\nEER_DEV_MODE=true\nEER_API_HOST=127.0.0.1\n"
     env_file = tmp_path / ".env"
     env_file.write_text(env_content)
 
     # Calling with base_dir should load the .env from that dir
-    config = get_server_config(base_dir=tmp_path)
+    config = _get_fresh_server_config(base_dir=tmp_path)
     assert config.api_port == 7777
     assert config.dev_mode is True
     assert config.api_host == "127.0.0.1"
 
-    # Verify it cached this specific configuration (though usually we'd only use one)
-    config_cached = get_server_config(base_dir=tmp_path)
-    assert config_cached is config
+
+def test_get_fresh_server_config_no_dotenv(tmp_path):
+    """Test that _get_fresh_server_config ignores .env when use_dotenv is False."""
+    env_content = "EER_API_PORT=6666\n"
+    env_file = tmp_path / ".env"
+    env_file.write_text(env_content)
+
+    # Even if there's a local .env, it should be ignored
+    config = _get_fresh_server_config(use_dotenv=False)
+    # Default api_port is 8000
+    assert config.api_port == 8000

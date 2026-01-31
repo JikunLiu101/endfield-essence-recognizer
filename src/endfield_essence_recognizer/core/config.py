@@ -77,8 +77,28 @@ class ServerConfig(BaseSettings):
         return self.dev_url if self.dev_mode else self.prod_url
 
 
+def _get_fresh_server_config(
+    base_dir: Path | None = None, use_dotenv: bool = True
+) -> ServerConfig:
+    """
+    Get a fresh server configuration instance, bypassing the cache.
+
+    Args:
+        base_dir (Path | None): Optional base directory to locate the `.env` file. If None,
+            should load the default `.env` file which is at the same directory as whatever
+            is __main__.
+        use_dotenv (bool): Whether to use the `.env` file for configuration. If False, pass
+            _env_file=None to ServerConfig to ignore any .env files.
+    """
+    if not use_dotenv:
+        return ServerConfig(_env_file=None)
+    if base_dir is None:
+        return ServerConfig()
+    return ServerConfig(_env_file=base_dir / ".env")
+
+
 @lru_cache(maxsize=1)
-def get_server_config(base_dir: Path | None = None) -> ServerConfig:
+def get_server_config() -> ServerConfig:
     """
     Get the singleton server configuration instance.
 
@@ -86,6 +106,4 @@ def get_server_config(base_dir: Path | None = None) -> ServerConfig:
         base_dir (Path | None): Optional base directory to locate the `.env` file. Otherwise,
             the default settings are used.
     """
-    if base_dir is None:
-        return ServerConfig()
-    return ServerConfig(_env_file=base_dir / ".env")
+    return _get_fresh_server_config(base_dir=None, use_dotenv=True)
