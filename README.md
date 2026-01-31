@@ -34,3 +34,42 @@
 本工具可能依赖第三方库/服务，其可用性与结果由各自提供方负责。
 
 若不同意上述条款，请立即停止使用本工具。
+
+
+## 开发
+
+### frontend
+
+前端部分位于 `frontend` 目录。
+
+创建并激活虚拟环境：
+
+```bash
+cd frontend
+npm install
+```
+
+### backend
+
+后端位于 `src/endfield_essence_recognizer` 目录。
+
+使用 `uv` 管理虚拟环境：
+
+```bash
+uv sync --dev
+```
+
+### 运行
+
+要完整运行该工具，需要同时启动前后端：
+
+```bash
+cd frontend
+npm run dev
+```
+
+```bash
+uv run eer
+```
+
+环境变量在 `.env` 文件中配置。
