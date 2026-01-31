@@ -46,13 +46,13 @@ async def lifespan(app: FastAPI):
 
     if not server_config.dev_mode:
         if not server_config.dist_dir:
-            # use the shipped build directory
+            # use the default shipped build directory
             dist_dir = (
                 Path(importlib.resources.files("endfield_essence_recognizer"))
                 / "webui_dist"
             )
         else:
-            # dev mode: use the specified directory
+            # use the specified directory
             dist_dir = Path(server_config.dist_dir)
         # 挂载静态文件目录（生产环境）
         if dist_dir.exists():
