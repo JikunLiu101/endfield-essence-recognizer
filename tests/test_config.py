@@ -22,20 +22,28 @@ def test_server_config_defaults():
     assert config.api_host == "localhost"
     assert config.api_port == 8000
     assert config.dev_url == "http://localhost:3000"
-    assert config.prod_url == "http://localhost:8000"
+    assert config._get_webview_prod_url() == "http://localhost:8000"
     assert config.webview_url == "http://localhost:8000"
 
 
 def test_server_config_computed_properties():
     """Test computed properties prod_url and webview_url."""
     # Production mode
-    config_prod = ServerConfig(dev_mode=False, api_port=8080, _env_file=None)
-    assert config_prod.prod_url == "http://localhost:8080"
+    config_prod = ServerConfig(
+        dev_mode=False,
+        api_port=8080,
+        dev_url="http://localhost:5173",
+        _env_file=None,
+    )
+    assert config_prod._get_webview_prod_url() == "http://localhost:8080"
     assert config_prod.webview_url == "http://localhost:8080"
 
     # Development mode
     config_dev = ServerConfig(
-        dev_mode=True, dev_url="http://localhost:5173", _env_file=None
+        dev_mode=True,
+        api_port=8080,
+        dev_url="http://localhost:5173",
+        _env_file=None,
     )
     assert config_dev.webview_url == "http://localhost:5173"
 

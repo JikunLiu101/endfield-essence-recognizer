@@ -64,17 +64,15 @@ class ServerConfig(BaseSettings):
     EER_API_PORT: 服务器端口号。
     """
 
-    @computed_field
-    @property
-    def prod_url(self) -> str:
-        """生产环境 URL"""
+    def _get_webview_prod_url(self) -> str:
+        """生产环境 Webview URL"""
         return f"http://localhost:{self.api_port}"
 
     @computed_field
     @property
     def webview_url(self) -> str:
         """Webview 使用的 URL"""
-        return self.dev_url if self.dev_mode else self.prod_url
+        return self.dev_url if self.dev_mode else self._get_webview_prod_url()
 
 
 def _get_fresh_server_config(
