@@ -10,14 +10,14 @@ import pygetwindow
 from cv2.typing import MatLike
 
 from endfield_essence_recognizer.config import config
-from endfield_essence_recognizer.game_data import get_translation, weapon_basic_table
+from endfield_essence_recognizer.game_data import get_translation, weapon_basic_table, gem_table
 from endfield_essence_recognizer.game_data.item import get_item_name
 from endfield_essence_recognizer.game_data.weapon import (
     get_gem_tag_name,
     weapon_stats_dict,
     weapon_type_int_to_translation_key,
 )
-from endfield_essence_recognizer.image import load_image
+from endfield_essence_recognizer.image import load_image, to_gray_image
 from endfield_essence_recognizer.log import logger
 from endfield_essence_recognizer.recognizer import Recognizer
 from endfield_essence_recognizer.window import (
@@ -114,21 +114,19 @@ def recognize_level_from_icon_points(image: MatLike, icon_points: list[tuple[int
     根据坐标点列表识别等级。
     
     Args:
-        image: 全局灰度图像（客户区截图）
+        image: 全局图像（客户区截图）
         icon_points: 4个图标的坐标点列表 [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
     
     Returns:
         等级 (1-4) 或 None（识别失败）
     """
-    from endfield_essence_recognizer.image import to_gray_image
-    
     gray = to_gray_image(image)
     
     # 检测每个图标的状态
     active_count = 0
     for i, (x, y) in enumerate(icon_points):
         is_active = detect_icon_state_at_point(gray, x, y, LEVEL_ICON_SAMPLE_RADIUS)
-        logger.trace(f"图标 {i + 1} ({x},{y}) 状态: {'\u767d\u8272' if is_active else '\u9ed1\u8272'}")
+        logger.trace(f"图标 {i + 1} ({x},{y}) 状态: {'\u767d\u8272' if is_active else '\u7070\u8272'}")
         if is_active:
             active_count += 1
         else:
@@ -170,7 +168,6 @@ def judge_essence_quality(stats: list[str | None], levels: list[int | None] | No
     is_high_level_treasure = False
     high_level_info = ""
     if config.high_level_treasure_enabled and levels is not None:
-        from endfield_essence_recognizer.game_data import gem_table
         for i, (stat, level) in enumerate(zip(stats, levels)):
             if stat is not None and level is not None and level >= config.high_level_treasure_threshold:
                 # 检查该词条是否为属性词条 (termType == 1)
@@ -204,12 +201,12 @@ def judge_essence_quality(stats: list[str | None], levels: list[int | None] | No
             if weapon_id in config.trash_weapon_ids:
                 if is_high_level_treasure:
                     logger.opt(colors=True).success(
-                        f"这个基质是<green><bold><underline>宝藏</></></>，因为它有高等级属性词条{high_level_info}。<yellow>即使它匹配的武器<bold>{get_item_name(weapon_id, 'CN')}（{weapon_basic_table[weapon_id]['rarity']}★ {get_translation(weapon_type_int_to_translation_key[weapon_id], 'CN')}）</>已被标记为养成材料。</>"
+                        f"这个基质是<green><bold><underline>宝藏</></></>，因为它有高等级属性词条{high_level_info}。<yellow>即使它匹配的武器<bold>{get_item_name(weapon_id, 'CN')}（{weapon_basic_table[weapon_id]['rarity']}★ {get_translation(weapon_type_int_to_translation_key[weapon_id], 'CN')}）</>已经被用户取消勾选了。</>"
                     )
                     return "treasure"
                 else:
                     logger.opt(colors=True).warning(
-                        f"这个基质虽然匹配武器<bold>{get_item_name(weapon_id, 'CN')}（{weapon_basic_table[weapon_id]['rarity']}★ {get_translation(weapon_type_int_to_translation_key[weapon_id], 'CN')}）</>，但是它被认为是<red><bold><underline>养成材料</></></>。"
+                        f"这个基质虽然匹配武器<bold>{get_item_name(weapon_id, 'CN')}（{weapon_basic_table[weapon_id]['rarity']}★ {get_translation(weapon_type_int_to_translation_key[weapon_id], 'CN')}）</>，但是它已经被用户取消勾选了，因此这个基质是<red><bold><underline>养成材料</></></>。"
                     )
                     return "trash"
             else:
