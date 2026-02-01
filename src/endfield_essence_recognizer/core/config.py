@@ -58,7 +58,7 @@ class ServerConfig(BaseSettings):
     """
 
     api_port: int = Field(
-        default=8000,
+        default=325,
     )
     """
     EER_API_PORT: 服务器端口号。

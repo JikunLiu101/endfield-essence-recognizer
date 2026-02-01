@@ -193,7 +193,7 @@ npm run lint:fix
    ```bash
    uv run eer
    ```
-4. 访问 `http://localhost:8000`
+4. 访问 `http://localhost:325`
 
 ### 打包发布
 

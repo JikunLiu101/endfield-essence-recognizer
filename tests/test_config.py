@@ -20,10 +20,10 @@ def test_server_config_defaults():
     config = ServerConfig(_env_file=None)
     assert config.dev_mode is False
     assert config.api_host == "localhost"
-    assert config.api_port == 8000
+    assert config.api_port == 325
     assert config.dev_url == "http://localhost:3000"
-    assert config._get_webview_prod_url() == "http://localhost:8000"
-    assert config.webview_url == "http://localhost:8000"
+    assert config._get_webview_prod_url() == "http://localhost:325"
+    assert config.webview_url == "http://localhost:325"
 
 
 def test_server_config_computed_properties():
@@ -89,5 +89,5 @@ def test_get_fresh_server_config_no_dotenv(tmp_path):
 
     # Even if there's a local .env, it should be ignored
     config = _get_fresh_server_config(use_dotenv=False)
-    # Default api_port is 8000
-    assert config.api_port == 8000
+    # Default api_port is 325
+    assert config.api_port == 325
