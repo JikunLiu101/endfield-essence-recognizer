@@ -224,8 +224,6 @@ def judge_essence_quality(
 
         if non_trash_weapon_ids:
             # 只要有一个匹配武器未被拦截，就是宝藏
-            # weapon_id = non_trash_weapon_ids[0]
-            # weapon_basic = weapon_basic_table[weapon_id]
 
             # 输出所有匹配到且未被拦截的武器列表
             weapon_descriptions = []
