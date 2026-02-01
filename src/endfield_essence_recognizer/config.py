@@ -36,7 +36,7 @@ class Config(BaseModel):
 
     treasure_action: Action = "lock"
     trash_action: Action = "unlock"
-    
+
     high_level_treasure_enabled: bool = False
     """是否启用高等级基质属性词条判定为宝藏"""
     high_level_treasure_threshold: int = 3

@@ -10,17 +10,19 @@ import pygetwindow
 from cv2.typing import MatLike
 
 from endfield_essence_recognizer.config import config
-from endfield_essence_recognizer.game_data import get_translation, weapon_basic_table, gem_table
+from endfield_essence_recognizer.game_data import (
+    gem_table,
+    get_translation,
+    weapon_basic_table,
+)
 from endfield_essence_recognizer.game_data.item import get_item_name
 from endfield_essence_recognizer.game_data.weapon import (
     get_gem_tag_name,
     weapon_stats_dict,
     weapon_type_int_to_translation_key,
 )
-from endfield_essence_recognizer.image import load_image, to_gray_image
-from endfield_essence_recognizer.log import logger
 from endfield_essence_recognizer.recognizer import Recognizer
-from endfield_essence_recognizer.utils.image import load_image
+from endfield_essence_recognizer.utils.image import load_image, to_gray_image
 from endfield_essence_recognizer.utils.log import logger
 from endfield_essence_recognizer.utils.window import (
     click_on_window,
@@ -86,13 +88,13 @@ LEVEL_ICON_SAMPLE_RADIUS = 2
 def detect_icon_state_at_point(image: MatLike, x: int, y: int, radius: int = 3) -> bool:
     """
     检测指定坐标点的图标状态。
-    
+
     Args:
         image: 全局灰度图像（客户区截图）
         x: 图标中心 x 坐标（客户区像素坐标）
         y: 图标中心 y 坐标（客户区像素坐标）
         radius: 采样半径
-    
+
     Returns:
         True 表示白色/亮色（激活），False 表示黑色/暗色（未激活）
     """
@@ -100,41 +102,47 @@ def detect_icon_state_at_point(image: MatLike, x: int, y: int, radius: int = 3) 
     if x < radius or x >= width - radius or y < radius or y >= height - radius:
         logger.warning(f"坐标点 ({x}, {y}) 超出图像范围")
         return False
-    
+
     # 提取坐标点周围区域的平均亮度
-    region = image[y - radius:y + radius + 1, x - radius:x + radius + 1]
+    region = image[y - radius : y + radius + 1, x - radius : x + radius + 1]
     avg_brightness = np.mean(region)
-    
+
     # 阈值：大于 200 认为是白色/亮色（激活）
     is_active = avg_brightness > 200
-    logger.trace(f"坐标点 ({x}, {y}) 亮度={avg_brightness:.1f}, 状态={'\u767d\u8272' if is_active else '\u7070\u8272'}")
+    logger.trace(
+        f"坐标点 ({x}, {y}) 亮度={avg_brightness:.1f}, 状态={'\u767d\u8272' if is_active else '\u7070\u8272'}"
+    )
     return is_active
 
 
-def recognize_level_from_icon_points(image: MatLike, icon_points: list[tuple[int, int]]) -> int | None:
+def recognize_level_from_icon_points(
+    image: MatLike, icon_points: list[tuple[int, int]]
+) -> int | None:
     """
     根据坐标点列表识别等级。
-    
+
     Args:
         image: 全局图像（客户区截图）
         icon_points: 4个图标的坐标点列表 [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
-    
+
     Returns:
         等级 (1-4) 或 None（识别失败）
     """
     gray = to_gray_image(image)
-    
+
     # 检测每个图标的状态
     active_count = 0
     for i, (x, y) in enumerate(icon_points):
         is_active = detect_icon_state_at_point(gray, x, y, LEVEL_ICON_SAMPLE_RADIUS)
-        logger.trace(f"图标 {i + 1} ({x},{y}) 状态: {'\u767d\u8272' if is_active else '\u7070\u8272'}")
+        logger.trace(
+            f"图标 {i + 1} ({x},{y}) 状态: {'\u767d\u8272' if is_active else '\u7070\u8272'}"
+        )
         if is_active:
             active_count += 1
         else:
             # 假设白色图标是连续的，遇到黑色后不再计数
             break
-    
+
     # 根据激活图标数量返回等级
     if 1 <= active_count <= 4:
         return active_count
@@ -163,20 +171,28 @@ def check_scene(window: pygetwindow.Window) -> bool:
     return True
 
 
-def judge_essence_quality(stats: list[str | None], levels: list[int | None] | None = None) -> Literal["treasure", "trash"]:
+def judge_essence_quality(
+    stats: list[str | None], levels: list[int | None] | None = None
+) -> Literal["treasure", "trash"]:
     """根据识别到的属性判断基质品质，并输出日志提示。"""
-    
+
     # 检查属性等级：如果启用了高等级判定，记录是否为高等级宝藏
     is_high_level_treasure = False
     high_level_info = ""
     if config.high_level_treasure_enabled and levels is not None:
         for i, (stat, level) in enumerate(zip(stats, levels)):
-            if stat is not None and level is not None and level >= config.high_level_treasure_threshold:
+            if (
+                stat is not None
+                and level is not None
+                and level >= config.high_level_treasure_threshold
+            ):
                 # 检查该词条是否为属性词条 (termType == 1)
                 gem = gem_table.get(stat)
                 if gem is not None and gem.get("termType") == 1:
                     is_high_level_treasure = True
-                    high_level_info = f"（含高等级属性词条：{get_gem_tag_name(stat, 'CN')}+{level}）"
+                    high_level_info = (
+                        f"（含高等级属性词条：{get_gem_tag_name(stat, 'CN')}+{level}）"
+                    )
                     break
 
     # 尝试匹配用户自定义的宝藏基质条件
@@ -244,12 +260,12 @@ def recognize_essence(
         result, max_val = text_recognizer.recognize_roi(screenshot_image)
         stats.append(result)
         logger.debug(f"属性 {k} 识别结果: {result} (分数: {max_val:.3f})")
-        
+
         # 识别等级（通过检测坐标点状态）
         icon_points = [STATS_0_LEVEL_ICONS, STATS_1_LEVEL_ICONS, STATS_2_LEVEL_ICONS][k]
         level_value = recognize_level_from_icon_points(full_screenshot, icon_points)
         levels.append(level_value)
-        
+
         if level_value is not None:
             logger.debug(f"属性 {k} 等级识别结果: +{level_value}")
         else:
