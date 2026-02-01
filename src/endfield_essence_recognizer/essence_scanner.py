@@ -218,68 +218,63 @@ def judge_essence_quality(
         ):
             matched_weapon_ids.add(weapon_id)
 
-    if matched_weapon_ids:
-        # 检查匹配到的武器中，是否有不在 trash_weapon_ids 中的
-        non_trash_weapon_ids = matched_weapon_ids - set(config.trash_weapon_ids)
-
-        if non_trash_weapon_ids:
-            # 只要有一个匹配武器未被拦截，就是宝藏
-
-            # 输出所有匹配到且未被拦截的武器列表
-            weapon_descriptions = []
-            for weapon_id in non_trash_weapon_ids:
-                weapon_basic = weapon_basic_table[weapon_id]
-                weapon_name = get_item_name(weapon_id, "CN")
-                weapon_type = get_translation(
-                    weapon_type_int_to_translation_key[weapon_id], "CN"
-                )
-                weapon_descriptions.append(
-                    f"<bold>{weapon_name}（{weapon_basic['rarity']}★ {weapon_type}）</>"
-                )
-            weapons_description_str = "、".join(weapon_descriptions)
-
-            logger.opt(colors=True).success(
-                f"这个基质是<green><bold><underline>宝藏</></></>，它完美契合武器{weapons_description_str}{high_level_info}。"
-            )
-            return "treasure"
-        else:
-            # 所有匹配到的武器都在 trash_weapon_ids 中
-
-            # 输出所有匹配到的武器列表
-            weapon_descriptions = []
-            for weapon_id in matched_weapon_ids:
-                weapon_basic = weapon_basic_table[weapon_id]
-                weapon_name = get_item_name(weapon_id, "CN")
-                weapon_type = get_translation(
-                    weapon_type_int_to_translation_key[weapon_id], "CN"
-                )
-                weapon_descriptions.append(
-                    f"<bold>{weapon_name}（{weapon_basic['rarity']}★ {weapon_type}）</>"
-                )
-            weapons_description_str = "、".join(weapon_descriptions)
-
-            if is_high_level_treasure:
-                logger.opt(colors=True).success(
-                    f"这个基质是<green><bold><underline>宝藏</></></>，因为它有高等级属性词条{high_level_info}。"
-                    f"<yellow>即使它匹配的所有武器{weapons_description_str}均已被用户手动拦截。</>"
-                )
-                return "treasure"
-            else:
-                logger.opt(colors=True).warning(
-                    f"这个基质虽然匹配武器{weapons_description_str}，但匹配的所有武器均已被用户手动拦截，"
-                    f"因此这个基质是<red><bold><underline>养成材料</></></>。"
-                )
-                return "trash"
-    else:
+    if not matched_weapon_ids:
         # 未匹配到任何已实装武器
         if is_high_level_treasure:
             logger.opt(colors=True).success(
-                f"这个基质是<green><bold><underline>宝藏</></></>，因为它有高等级属性词条{high_level_info}。<dim>（但不匹配任何已实装武器）</>"
+                f"这个基质是<green><bold><underline>宝藏</></></>，因为它有高等级属性词条{high_level_info}。"
+                "<dim>（但不匹配任何已实装武器）</>"
             )
             return "treasure"
         else:
             logger.opt(colors=True).success(
                 "这个基质是<red><bold><underline>养成材料</></></>，它不匹配任何已实装武器。"
+            )
+            return "trash"
+    # 检查匹配到的武器中，是否有不在 trash_weapon_ids 中的
+    non_trash_weapon_ids = matched_weapon_ids - set(config.trash_weapon_ids)
+
+    def format_weapon_description(weapon_id: str) -> str:
+        """格式化武器描述，如`名称（稀有度★ 类型）`"""
+        weapon_basic = weapon_basic_table[weapon_id]
+        weapon_name = get_item_name(weapon_id, "CN")
+        weapon_type = get_translation(
+            weapon_type_int_to_translation_key[weapon_id], "CN"
+        )
+        return f"<bold>{weapon_name}（{weapon_basic['rarity']}★ {weapon_type}）</>"
+
+    if non_trash_weapon_ids:
+        # 只要有一个匹配武器未被拦截，就是宝藏
+
+        # 输出所有匹配到且未被拦截的武器列表
+        weapon_descriptions = [
+            format_weapon_description(wid) for wid in non_trash_weapon_ids
+        ]
+        weapons_description_str = "、".join(weapon_descriptions)
+
+        logger.opt(colors=True).success(
+            f"这个基质是<green><bold><underline>宝藏</></></>，它完美契合武器{weapons_description_str}{high_level_info}。"
+        )
+        return "treasure"
+    else:
+        # 所有匹配到的武器都在 trash_weapon_ids 中
+
+        # 输出所有匹配到的武器列表
+        weapon_descriptions = [
+            format_weapon_description(wid) for wid in matched_weapon_ids
+        ]
+        weapons_description_str = "、".join(weapon_descriptions)
+
+        if is_high_level_treasure:
+            logger.opt(colors=True).success(
+                f"这个基质是<green><bold><underline>宝藏</></></>，因为它有高等级属性词条{high_level_info}。"
+                f"<yellow>即使它匹配的所有武器{weapons_description_str}均已被用户手动拦截。</>"
+            )
+            return "treasure"
+        else:
+            logger.opt(colors=True).warning(
+                f"这个基质虽然匹配武器{weapons_description_str}，但匹配的所有武器均已被用户手动拦截，"
+                f"因此这个基质是<red><bold><underline>养成材料</></></>。"
             )
             return "trash"
 
