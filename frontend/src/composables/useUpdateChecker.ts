@@ -3,6 +3,14 @@ import { ref } from 'vue'
 export interface UpdateInfo {
   latestVersion: string
   downloadUrl: string
+  releaseNotes?: string
+}
+
+export interface UpdateStatus {
+  isDownloading: boolean
+  isInstalling: boolean
+  downloadProgress: number
+  errorMessage: string | null
 }
 
 const hasNewVersionDialog = ref<boolean>(false)
@@ -11,6 +19,13 @@ const checkUpdateFailedDialog = ref<boolean>(false)
 const currentVersion = ref<string | null>(null)
 const updateInfo = ref<UpdateInfo | null>(null)
 const updateErrorMessage = ref<string>('')
+const updateStatus = ref<UpdateStatus>({
+  isDownloading: false,
+  isInstalling: false,
+  downloadProgress: 0,
+  errorMessage: null,
+})
+const extractDir = ref<string | null>(null)
 
 export function useUpdateChecker() {
   /**
@@ -37,28 +52,24 @@ export function useUpdateChecker() {
    */
   async function checkForUpdates(showIfLatest: boolean = false) {
     try {
-      // 获取当前版本
-      currentVersion.value = await fetch('/api/version').then((res) => res.json())
+      // 从后端 API 检查更新
+      const response = await fetch('/api/update/check')
+      const data = await response.json()
 
-      if (!currentVersion.value) {
-        updateErrorMessage.value = '无法获取当前版本信息'
+      if (data.error) {
+        updateErrorMessage.value = data.error
         checkUpdateFailedDialog.value = true
         return
       }
 
-      // 获取最新版本信息
-      updateInfo.value = await fetch(
-        `https://cos.yituliu.cn/endfield/endfield-essence-recognizer/version.json?t=${Date.now()}`,
-      ).then((res) => res.json())
-
-      if (!updateInfo.value?.latestVersion) {
-        updateErrorMessage.value = '无法获取最新版本信息'
-        checkUpdateFailedDialog.value = true
-        return
+      currentVersion.value = data.current_version
+      updateInfo.value = {
+        latestVersion: data.latest_version,
+        downloadUrl: data.download_url,
+        releaseNotes: data.release_notes,
       }
 
-      // 比较版本
-      if (compareVersions(updateInfo.value.latestVersion, currentVersion.value) > 0) {
+      if (data.has_update) {
         hasNewVersionDialog.value = true
       } else if (showIfLatest) {
         isLatestVersionDialog.value = true
@@ -71,6 +82,107 @@ export function useUpdateChecker() {
     }
   }
 
+  /**
+   * 下载更新
+   */
+  async function downloadUpdate() {
+    try {
+      updateStatus.value.isDownloading = true
+      updateStatus.value.downloadProgress = 0
+      updateStatus.value.errorMessage = null
+
+      const response = await fetch('/api/update/download', {
+        method: 'POST',
+      })
+      const data = await response.json()
+
+      if (data.error) {
+        updateStatus.value.errorMessage = data.error
+        return false
+      }
+
+      if (data.ready_to_install) {
+        extractDir.value = data.extract_dir
+        return true
+      }
+
+      return false
+    } catch (error) {
+      console.error('下载更新失败：', error)
+      updateStatus.value.errorMessage =
+        error instanceof Error ? error.message : '下载失败'
+      return false
+    } finally {
+      updateStatus.value.isDownloading = false
+    }
+  }
+
+  /**
+   * 安装更新
+   */
+  async function installUpdate() {
+    if (!extractDir.value) {
+      updateStatus.value.errorMessage = '没有可安装的更新'
+      return false
+    }
+
+    try {
+      updateStatus.value.isInstalling = true
+      updateStatus.value.errorMessage = null
+
+      const response = await fetch('/api/update/install', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          extract_dir: extractDir.value,
+        }),
+      })
+      const data = await response.json()
+
+      if (data.error) {
+        updateStatus.value.errorMessage = data.error
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error('安装更新失败：', error)
+      updateStatus.value.errorMessage =
+        error instanceof Error ? error.message : '安装失败'
+      return false
+    } finally {
+      updateStatus.value.isInstalling = false
+    }
+  }
+
+  /**
+   * 获取更新状态（用于轮询）
+   */
+  async function pollUpdateStatus() {
+    try {
+      const response = await fetch('/api/update/status')
+      const data = await response.json()
+      updateStatus.value = data
+    } catch (error) {
+      console.error('获取更新状态失败：', error)
+    }
+  }
+
+  /**
+   * 开始轮询更新状态
+   */
+  function startPollingUpdateStatus(interval: number = 500) {
+    const timerId = setInterval(async () => {
+      await pollUpdateStatus()
+      if (!updateStatus.value.isDownloading && !updateStatus.value.isInstalling) {
+        clearInterval(timerId)
+      }
+    }, interval)
+    return timerId
+  }
+
   return {
     // 状态
     hasNewVersionDialog,
@@ -79,7 +191,12 @@ export function useUpdateChecker() {
     currentVersion,
     updateInfo,
     updateErrorMessage,
+    updateStatus,
     // 方法
     checkForUpdates,
+    downloadUpdate,
+    installUpdate,
+    pollUpdateStatus,
+    startPollingUpdateStatus,
   }
 }
