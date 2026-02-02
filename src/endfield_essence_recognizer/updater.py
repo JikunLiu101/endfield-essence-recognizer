@@ -234,7 +234,7 @@ rm -- "$0"
                 }
 
             # 获取下载地址
-            download_url = release_info["downloadUrl"]
+            download_url = release_info["assets"][0]["browser_download_url"]
             if not download_url:
                 raise UpdateError("未找到更新包的下载地址")
 
