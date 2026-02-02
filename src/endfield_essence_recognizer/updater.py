@@ -170,22 +170,28 @@ class UpdateManager:
         """创建更新脚本"""
         if platform.system() == "Windows":
             script_path = app_dir / "update.bat"
+            # 确保使用 Windows 路径格式（反斜杠）
+            source_dir_str = str(source_dir).replace("/", "\\")
+            app_dir_str = str(app_dir).replace("/", "\\")
+            temp_dir_str = str(source_dir.parent).replace("/", "\\")
+            exe_path_str = str(app_dir / "endfield-essence-recognizer.exe").replace("/", "\\")
+            
             script_content = f"""@echo off
 chcp 65001 >nul
 echo 等待程序退出...
 timeout /t 2 /nobreak >nul
 
 echo 正在更新文件...
-xcopy /E /I /Y /Q "{source_dir}" "{app_dir}"
+robocopy "{source_dir_str}" "{app_dir_str}" /E /IS /IT /IM /NP /NFL /NDL
 
 echo 清理临时文件...
-rd /s /q "{source_dir.parent}"
+rd /s /q "{temp_dir_str}"
 
 echo 更新完成！程序将在 3 秒后重新启动...
 timeout /t 3 /nobreak >nul
 
 echo 重新启动程序...
-start "" "{app_dir / 'endfield-essence-recognizer.exe'}"
+start "" "{exe_path_str}"
 
 del "%~f0"
 """
