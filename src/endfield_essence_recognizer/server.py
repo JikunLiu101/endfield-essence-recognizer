@@ -167,12 +167,12 @@ async def check_update() -> dict[str, Any]:
 
     try:
         release_info = await update_manager.get_latest_release()
-        latest_version = release_info["latestVersion"]
+        latest_version = release_info["tag_name"].lstrip("v")
         current_version = __version__ or "0.0.0"
 
         has_update = update_manager._compare_versions(latest_version, current_version) > 0
 
-        download_url = release_info.get("downloadUrl")
+        download_url = release_info.get("browser_download_url")
 
         return {
             "has_update": has_update,
