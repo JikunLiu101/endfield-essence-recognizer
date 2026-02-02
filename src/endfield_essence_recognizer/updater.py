@@ -220,7 +220,7 @@ rm -- "$0"
         try:
             # 获取最新版本信息
             release_info = await self.get_latest_release()
-            latest_version = release_info["latestVersion"]
+            latest_version = release_info["tag_name"].lstrip("v")
             current_version = __version__ or "0.0.0"
 
             logger.info(f"当前版本: {current_version}, 最新版本: {latest_version}")
