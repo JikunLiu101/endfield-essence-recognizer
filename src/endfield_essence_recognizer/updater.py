@@ -18,8 +18,8 @@ from loguru import logger
 from endfield_essence_recognizer.path import ROOT_DIR
 from endfield_essence_recognizer.version import __version__
 
-GITHUB_REPO = "Logical-Byte/endfield-essence-recognizer"
-VERSION_CHECK_URL = "https://cos.yituliu.cn/endfield/endfield-essence-recognizer/version.json"
+GITHUB_REPO = "JikunLiu101/endfield-essence-recognizer"
+VERSION_CHECK_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 
 class UpdateError(Exception):
