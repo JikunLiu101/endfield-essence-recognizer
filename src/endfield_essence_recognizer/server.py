@@ -160,6 +160,68 @@ async def get_version() -> str | None:
     return __version__
 
 
+@app.get("/api/update/check")
+async def check_update() -> dict[str, Any]:
+    """检查是否有新版本可用"""
+    from endfield_essence_recognizer.updater import update_manager
+
+    try:
+        release_info = await update_manager.get_latest_release()
+        latest_version = release_info["latestVersion"]
+        current_version = __version__ or "0.0.0"
+
+        has_update = update_manager._compare_versions(latest_version, current_version) > 0
+
+        download_url = release_info.get("downloadUrl")
+
+        return {
+            "has_update": has_update,
+            "current_version": current_version,
+            "latest_version": latest_version,
+            "download_url": download_url,
+            "release_notes": release_info.get("releaseNotes", ""),
+        }
+    except Exception as e:
+        logger.exception(f"检查更新失败: {e}")
+        return {"error": str(e)}
+
+
+@app.post("/api/update/download")
+async def download_update() -> dict[str, Any]:
+    """下载并安装更新"""
+    from endfield_essence_recognizer.updater import update_manager
+
+    try:
+        result = await update_manager.check_and_download_update()
+        return result
+    except Exception as e:
+        logger.exception(f"下载更新失败: {e}")
+        return {"error": str(e)}
+
+
+@app.post("/api/update/install")
+async def install_update(extract_dir: str = Body(..., embed=True)) -> dict[str, Any]:
+    """安装已下载的更新"""
+    from pathlib import Path
+
+    from endfield_essence_recognizer.updater import update_manager
+
+    try:
+        await update_manager.install_update(Path(extract_dir))
+        return {"success": True}
+    except Exception as e:
+        logger.exception(f"安装更新失败: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/update/status")
+async def get_update_status() -> dict[str, Any]:
+    """获取更新进度状态"""
+    from endfield_essence_recognizer.updater import update_manager
+
+    return update_manager.get_status()
+
+
 @app.post("/api/start_scanning")
 async def start_scanning() -> None:
     toggle_scan()
